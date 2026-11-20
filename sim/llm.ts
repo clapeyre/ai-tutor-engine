@@ -59,7 +59,13 @@ export function firstJson(s: string): any {
     if (inStr) { if (esc) esc = false; else if (c === "\\") esc = true; else if (c === '"') inStr = false; continue; }
     if (c === '"') inStr = true;
     else if (c === "{") depth++;
-    else if (c === "}" && --depth === 0) return JSON.parse(s.slice(start, i + 1));
+    else if (c === "}" && --depth === 0) {
+      const raw = s.slice(start, i + 1);
+      try { return JSON.parse(raw); } catch (e) {
+        // LaTeX in a learner's answer (\sin, \nabla) is an invalid JSON escape: keep the backslash literally.
+        try { return JSON.parse(raw.replace(/\\(?!["\\/bfnrtu])/g, "\\\\")); } catch { throw e; }
+      }
+    }
   }
   throw new Error("unterminated JSON object");
 }

@@ -238,6 +238,7 @@ async function learnerTurn(text: string) {
       return a;
     } catch (e: any) {
       history.push({ role: "assistant", content: reply }, { role: "user", content: `That wasn't one JSON action (${e.message}). Reply with exactly one JSON object.` });
+      log(`<details><summary>learner reply that wasn't a valid action (${e.message})</summary>\n\n${"```"}\n${reply.slice(0, 3000)}\n${"```"}\n\n</details>`);
     }
   }
   throw new Error("learner gave no valid action");
