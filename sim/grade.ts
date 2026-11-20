@@ -12,7 +12,8 @@ const grader = gi > 0 ? process.argv[gi + 1] : "aws/anthropic/bedrock-claude-opu
 const read = (f: string, max = 400_000) => { try { const s = fs.readFileSync(f, "utf8"); return s.length > max ? s.slice(0, max) + "\n…(cut)" : s; } catch { return "(none)"; } };
 
 const meta = JSON.parse(fs.readFileSync(path.join(run, "meta.json"), "utf8"));
-const page = JSON.parse(read(path.join(run, "learner", "page.json")));
+// Parsed whole: read() cuts long files, and a full-course page.json (over 400 kB) came out as invalid JSON.
+const page = JSON.parse(fs.readFileSync(path.join(run, "learner", "page.json"), "utf8"));
 // Lessons the learner opened: their text and the tutor's notes.
 const lessonDirs: string[] = [];
 for (const m of fs.readdirSync(path.join(COURSE_ROOT, "course", "modules"))) {
