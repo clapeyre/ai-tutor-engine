@@ -436,7 +436,10 @@ export class Tutor {
         parameters: Type.Object({
           turn_id: Type.String(),
           summary: Type.String(),
-          misconceptions: Type.Optional(Type.Array(Type.String(), { description: "M- ids the learner voiced or acted on, in this turn or a side question since the last settle (resolved or not); never one they rejected" })),
+          misconceptions: Type.Optional(Type.Array(Type.Object({
+            id: Type.String({ description: "an M- id from course/misconceptions.md" }),
+            quote: Type.String({ description: "the learner's own words that showed the belief, copied exactly (a few words are enough)" }),
+          }), { description: "beliefs the learner voiced or acted on, in this turn or a side question in this lesson (resolved or not), each with the learner's words that showed it; never one they rejected" })),
         }),
         execute: async (_id, p) => {
           const t = resolveTurn(p.turn_id);
@@ -451,17 +454,28 @@ export class Tutor {
           if (q?.text.trim().endsWith("?") && !answeredSince) throw new Error(`your reply in ${p.turn_id} ends with a question, so it wasn't settled: wait for the learner's answer and settle on it (or, if the question was rhetorical, rephrase it and settle)`);
           t.turn.status = "settled";
           t.turn.summary = p.summary;
-          t.turn.misconceptions.push(...(p.misconceptions ?? []));
+          // A belief is recorded only with the learner's own words behind it: sims showed tutors tagging the lesson's
+          // target belief when the learner had rejected it, and missing the ones voiced in the margin.
+          const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9.+\-*/=<>]+/g, " ").trim();
+          const said = [
+            ...t.lesson.turnIds.flatMap((x) => s.lesson(t.lessonId).turns[x]?.log ?? []),
+            ...this.store.page.threads.filter((th) => th.from === t.lessonId).flatMap((th) => th.messages),
+          ].filter((e) => e.who === "learner").map((e) => norm(e.text)).join(" | ");
+          const tags = (p.misconceptions ?? []).map((m: any) => typeof m === "string" ? { id: m, quote: "" } : m);
+          const kept = tags.filter((m) => norm(m.quote).length >= 8 && said.includes(norm(m.quote)));
+          const dropped = tags.filter((m) => !kept.includes(m));
+          t.turn.misconceptions.push(...kept.map((m) => m.id));
+          const tagNote = dropped.length ? ` Not recorded: ${dropped.map((m) => m.id).join(", ")} (no matching words of the learner's in this lesson; a belief is recorded only with their own words, copied exactly).` : "";
           this.spokeIn.add(`${t.lessonId}/${t.tid}`);
           s.save(this.lessonTurns);
           const left = t.lesson.turnIds.filter((x) => s.lesson(t.lessonId).turns[x]?.status !== "settled");
           const idx = t.lesson.turnIds.indexOf(t.tid);
           const earlier = left.filter((x) => t.lesson.turnIds.indexOf(x) < idx);
-          return text(earlier.length
+          return text((earlier.length
             ? `Settled. An earlier turn is still open: ${earlier.join(", ")}. Settle it once its criteria are met; reveal waits for it. Don't ask anything in this turn.`
             : left.length
             ? `Settled. The page now opens the next turn, ${left[0]}, with its own question. Finish your reply about this one and stop: don't introduce, ask or answer the next turn.`
-            : `Settled. All turns in ${t.lessonId} are settled; reveal("${t.lessonId}") when ready.`);
+            : `Settled. All turns in ${t.lessonId} are settled; reveal("${t.lessonId}") when ready.`) + tagNote);
         },
       }),
       defineTool({
