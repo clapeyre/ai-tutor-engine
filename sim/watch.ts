@@ -52,7 +52,8 @@ function info(id: string, now: number): Info | null {
   const page = readJson(path.join(dir, "learner", "page.json")) ?? { lessons: {} };
   return {
     id, meta, metaAt, mods, cur: page.current ?? "—",
-    tutor: id.replace(/^\d{4}-\d{4}-/, "").replace(/^(t1-thorough|s4-[a-z-]+?)-/, ""),
+    // persona and tutor model; the modules have their own column
+    tutor: id.replace(/^\d{4}-\d{4}-/, "").replace(/-m\d+(?=-|$)/, ""),
     done: lessons.filter((l) => page.lessons[l.id]?.revealed).length, lessons: lessons.length,
     qTotal: lessons.reduce((a, l) => a + l.questions, 0),
     qDone: lessons.reduce((a, l) => a + Object.values<any>(page.lessons[l.id]?.turns ?? {}).filter((t) => t.status === "settled").length, 0),
@@ -118,12 +119,16 @@ function render(): string {
   for (const r of finished) {
     const dir = path.join(RUNS, r.id);
     const rev = [fs.existsSync(path.join(dir, "bugs.json")) && "Opus", fs.existsSync(path.join(dir, "bugs-gpt-6.2-astra.json")) && "Astra"].filter(Boolean);
+    // grade.ts's score, when the run was graded (sum of scored criteria, out of 3 each)
+    const g = readJson(path.join(dir, "grade.json"));
+    const sc = g ? Object.values<any>(g.scores ?? {}).filter((v) => typeof v === "number") : [];
+    if (sc.length) rev.push(`graded ${sc.reduce((a, b) => a + b, 0)}/${3 * sc.length}`);
     const complete = r.done === r.lessons && r.qDone === r.qTotal;
     const at = new Date(r.metaAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    lines.push(`  ${c.dim}${at}${c.off}  ${complete ? c.green + "✓" : c.yellow + "…"}${c.off} ${r.tutor.padEnd(34)} ${c.dim}${r.mods.join(",").padEnd(15)}${c.off}` +
+    lines.push(`  ${c.dim}${at}${c.off}  ${complete ? c.green + "✓" : c.yellow + "…"}${c.off} ${r.tutor.padEnd(44)} ${c.dim}${r.mods.join(",").padEnd(15)}${c.off}` +
       ` lessons ${r.done}/${r.lessons} · questions ${r.qDone}/${r.qTotal} · ${mmss(r.elapsed)}` +
       (complete ? "" : ` · ${c.yellow}${why(r)}${c.off}`) +
-      ` · ${rev.length ? `${c.green}reviewed: ${rev.join(" + ")}${c.off}` : `${c.yellow}not reviewed yet${c.off}`}`);
+      ` · ${rev.length ? `${c.green}${rev.join(" · ")}${c.off}` : `${c.yellow}not graded yet${c.off}`}`);
   }
   for (const r of stopped)
     lines.push(`  ${c.dim}${hhmm(now - r.idle * 1000)}${c.off}  ${c.red}✗${c.off} ${r.tutor.padEnd(34)} ${c.dim}${r.mods.join(",").padEnd(15)}${c.off}` +
