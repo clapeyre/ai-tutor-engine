@@ -19,8 +19,8 @@ const arg = (k: string, d?: string) => { const i = process.argv.indexOf(`--${k}`
 const personaFile = path.resolve(arg("persona")!);
 const tutorModel = arg("tutor", "aws/anthropic/bedrock-claude-sonnet-5-5")!;
 const tutorProvider = arg("provider", "nvidia")!; // a provider in tutor/pi-agent/models.json ("local": vLLM on this machine or a tunnel)
-// GPT-6.1 Sol (provider default reasoning, about medium): the standard learner since cuPhoton found Haiku too lenient.
-const learnerModel = arg("learner", "openai/openai/gpt-6.1-sol")!;
+// GPT-6.2 Sol (provider default reasoning, about medium): cuPhoton found Haiku too lenient and used 6.1 Sol; 6.2 is better at the same price.
+const learnerModel = arg("learner", "openai/openai/gpt-6.2-sol")!;
 const modules = arg("modules", "00,01")!.split(",");
 const port = Number(arg("port", "8811"));
 const maxSteps = Number(arg("max-steps", "45"));
