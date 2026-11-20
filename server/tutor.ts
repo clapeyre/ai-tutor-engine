@@ -327,7 +327,7 @@ export class Tutor {
           // A settled turn's box is closed: drop the model's "nothing further to add" coda.
           const turnState = this.store.turn(lid, tid);
           const coda = turnState.status === "settled" && said.length < 160
-            && /nothing (further|more|else)|no further|is (already )?settled|^(lesson|module) [\d.]+ is (complete|finished)\.?$/i.test(said);
+            && /nothing (further|more|else)|no further|is (already )?settled|^settled\.?$|^(lesson|module) [\d.]+ is (complete|finished)\.?$/i.test(said);
           if (coda || (said && last?.who === "tutor" && norm(last.text).includes(norm(said)))) this.onActivity();
           else if (said && last?.who === "tutor" && !last.figure && log.length > this.streamFrom
             && said.length >= 0.6 * last.text.length && isRewrite(last.text, said)) {
@@ -444,8 +444,11 @@ export class Tutor {
           if (!t.turn.attempts) throw new Error(`the learner hasn't answered in ${p.turn_id} yet: a turn settles on their reply, never before it`);
           // A reply that asks something and settles in the same breath leaves the learner's answer nowhere (sims, both models).
           const lastLearner = t.turn.log.findLastIndex((e) => e.who === "learner");
-          const said = t.turn.log.slice(lastLearner + 1).filter((e) => e.who === "tutor").at(-1)?.text.trim() ?? "";
-          if (said.endsWith("?")) throw new Error(`your reply in ${p.turn_id} ends with a question, so it wasn't settled: wait for the learner's answer and settle on it (or, if the question was rhetorical, rephrase it and settle)`);
+          const q = t.turn.log.slice(lastLearner + 1).filter((e) => e.who === "tutor").at(-1);
+          // An answer typed anywhere else in the lesson since (another box, a margin thread) counts as the reply.
+          const answeredSince = q && (t.lesson.turnIds.some((x) => s.lesson(t.lessonId).turns[x]?.log.some((e) => e.who === "learner" && e.at > q.at))
+            || this.store.page.threads.some((th) => th.from === t.lessonId && th.messages.some((m) => m.who === "learner" && m.at > q.at)));
+          if (q?.text.trim().endsWith("?") && !answeredSince) throw new Error(`your reply in ${p.turn_id} ends with a question, so it wasn't settled: wait for the learner's answer and settle on it (or, if the question was rhetorical, rephrase it and settle)`);
           t.turn.status = "settled";
           t.turn.summary = p.summary;
           t.turn.misconceptions.push(...(p.misconceptions ?? []));

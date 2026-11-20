@@ -31,7 +31,9 @@ const persona = fs.readFileSync(personaFile, "utf8");
 const rules = fs.readFileSync(path.join(ENGINE_ROOT, "sim", "learner_rules.md"), "utf8");
 const shortModel = tutorModel.split("/").pop()!.replace(/^bedrock-claude-/, "");
 const stamp = new Date().toISOString().slice(5, 16).replace(/[-:T]/g, "").replace(/^(\d{4})/, "$1-");
-const runId = `${stamp}-${path.basename(personaFile, ".md")}-${shortModel}${tag ? "-" + tag : ""}`;
+// The modules are part of the id: two matrices started in the same minute with the same persona and model
+// shared one run folder (transcript, learner) and both runs were spoiled.
+const runId = `${stamp}-${path.basename(personaFile, ".md")}-${shortModel}-m${modules.join("")}${tag ? "-" + tag : ""}`;
 const run = path.join(COURSE_ROOT, "runs", runId);
 const learnerDir = path.join(run, "learner");
 fs.mkdirSync(learnerDir, { recursive: true });
@@ -276,7 +278,16 @@ try {
     }
     if (a.action === "say") {
       const st = state.page.lessons[current]?.turns[a.turn];
-      if (!l.parts.some((p: any) => p.kind === "turn" && p.id === a.turn) || st?.status === "settled") {
+      const ids = l.parts.filter((p: any) => p.kind === "turn").map((p: any) => p.id);
+      const waiting = ids.indexOf(a.turn) > 0 && ids.slice(0, ids.indexOf(a.turn)).some((id: string) => state.page.lessons[current]?.turns[id]?.status !== "settled");
+      if (waiting) {
+        // As on the page: a later box has no reply field until the earlier ones close.
+        view = `(Nothing happened: the box "${a.turn}" opens once the one above it is finished.)`;
+        signal("learner_bad_box", a.turn);
+        waits.push(0);
+        continue;
+      }
+      if (!ids.includes(a.turn) || st?.status === "settled") {
         view = st?.status === "settled"
           ? `(Nothing happened: the box "${a.turn}" is closed and has no reply field any more. To add something, ask a side question.)`
           : `(Nothing happened: there's no open Your-turn box "${a.turn}" in this lesson.)`;
