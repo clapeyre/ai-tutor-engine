@@ -199,13 +199,13 @@ export function App() {
                     {lst.yourRun && (
                       <div className="your-run">
                         <span className="note">In your run</span>
-                        <p>{lst.yourRun}</p>
+                        <p><Inline text={lst.yourRun} where="your-run" /></p>
                       </div>
                     )}
                     {lesson.turnIds.some((t) => lst.turns[t]?.summary) && (
                       <div className="yours">
                         <span className="note">Your answers, in short</span>
-                        {lesson.turnIds.map((t) => lst.turns[t]?.summary && <span key={t}>“{lst.turns[t].summary}”</span>)}
+                        {lesson.turnIds.map((t) => lst.turns[t]?.summary && <span key={t}>“<Inline text={lst.turns[t].summary!} where={`found-${t}`} />”</span>)}
                       </div>
                     )}
                     {lesson.closure.matters && (

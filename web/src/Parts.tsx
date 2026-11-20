@@ -62,7 +62,7 @@ function AuthoredFigure({ part }: { part: Extract<Part, { kind: "figure" }> }) {
     <figure>
       <ZoomImg className="plot" src={part.src} alt={part.alt} caption={part.title} />
       <figcaption>
-        <span><strong>{part.title}.</strong> {part.caption}</span>
+        <span><strong>{part.title}.</strong> <Inline text={part.caption ?? ""} where={`cap-${part.title}`} /></span>
         <span className="capline">
           <button type="button" className="link" onClick={() => ctx.askAbout({ kind: "figure", label: part.title, src: part.src })}>Ask about this</button>
         </span>
@@ -85,7 +85,7 @@ export function ProducedFigure({ fig, compact }: { fig: FigureOnPage; compact?: 
       <ZoomImg className="plot" src={fig.src} alt={fig.title || fig.caption} caption={fig.title ? `${fig.title}. ${fig.caption ?? ""}` : fig.caption}
         style={compact ? { maxWidth: "100%" } : undefined} />
       <figcaption>
-        {(fig.title || fig.caption) && <span>{fig.title && <strong>{fig.title}. </strong>}{fig.caption}</span>}
+        {(fig.title || fig.caption) && <span>{fig.title && <strong>{fig.title}. </strong>}<Inline text={fig.caption ?? ""} where={`fig-${fig.src}`} /></span>}
         <span className="capline">
           {r && <span>{runLine(r)}</span>}
           {r && <button type="button" className="link" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Hide the run record" : "Run record"}</button>}
@@ -299,7 +299,7 @@ function Turn({ part }: { part: Extract<Part, { kind: "turn" }> }) {
         </div>
       )}
       {settled && !working && !streaming && (
-        <div className="check"><span className="tick" aria-hidden="true">✓</span><span>{st?.summary}</span></div>
+        <div className="check"><span className="tick" aria-hidden="true">✓</span><span><Inline text={st?.summary ?? ""} where={`sum-${part.id}`} /></span></div>
       )}
     </section>
   );

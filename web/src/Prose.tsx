@@ -12,10 +12,23 @@ function Maths({ tex, display }: { tex: string; display: boolean }) {
   return <span className={display ? "maths display" : "maths"} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
+/** Models write maths as \( \) and \[ \] as often as $ $ and $$ $$ (GPT tutors do, whatever the prompt asks): accept all
+ *  four, and keep each formula on one line so that splitting into paragraphs can't cut a display block in two.
+ *  Code spans are left alone. Idempotent. */
+export function normalizeMaths(s: string): string {
+  const oneLine = (m: string) => m.replace(/\s*\n\s*/g, " ").trim();
+  return s.split(/(`[^`\n]*`)/).map((part, i) => i % 2 ? part : part
+    .replace(/\\\[([\s\S]+?)\\\]/g, (_, m: string) => "$$" + oneLine(m) + "$$")
+    .replace(/\\\(([\s\S]+?)\\\)/g, (_, m: string) => "$" + oneLine(m) + "$")
+    .replace(/\$\$([\s\S]+?)\$\$/g, (_, m: string) => "$$" + oneLine(m) + "$$"),
+  ).join("");
+}
+
 /** Inline markup: [[term]] or [[term|shown text]], [text](https://…), [text](#/1.4) (a lesson), **bold**, *italic*, `code`,
  *  $$display maths$$ (may span lines) and $inline maths$ (LaTeX; a $ followed by a space or digit-free text isn't maths). */
-export function Inline({ text, where }: { text: string; where: string }) {
+export function Inline({ text: raw, where }: { text: string; where: string }) {
   const ctx = useCtx();
+  const text = normalizeMaths(raw);
   const out: ReactNode[] = [];
   const re = /\[\[(.+?)\]\]|\[([^\]]+)\]\((https?:\/\/(?:[^()\s]|\([^()\s]*\))+|#\/[\w.-]+|\/workspace\/[\w./-]+\.html)\)|\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|\$\$([\s\S]+?)\$\$|\$(?=\S)([^$\n]+?)(?<=\S)\$(?!\d)/g;
   let i = 0, m: RegExpExecArray | null, n = 0;
@@ -121,7 +134,7 @@ export function MessageText({ text, where }: { text: string; where: string }) {
     <>
       {seq.map((b, i) => b.code
         ? <Code key={i} text={b.text.replace(/\n$/, "")} lang={b.lang || undefined} className="msg-code" />
-        : <TextBlocks key={i} text={b.text} where={`${where}-${i}`} />)}
+        : <TextBlocks key={i} text={normalizeMaths(b.text)} where={`${where}-${i}`} />)}
     </>
   );
 }
