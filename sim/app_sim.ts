@@ -229,7 +229,7 @@ async function learnerTurn(text: string) {
   // A whole-course run is hundreds of steps: keep the persona and the most recent exchanges.
   if (history.length > historyLimit) { let cut = history.length - historyLimit; while (history[cut]?.role !== "user") cut++; history.splice(1, cut - 1, { role: "user", content: "(Earlier lessons: done; you remember them in outline.)" }, { role: "assistant", content: '{"action":"next"}' }); }
   for (const m of history.slice(1, -1)) if (Array.isArray(m.content)) m.content = m.content.filter((p) => p.type === "text").map((p: any) => p.text).join("\n");
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) { // the learner model sometimes answers in plain text or returns nothing: ask again
     const reply = await chat(learnerModel, history, { usage, maxTokens: 800 });
     try {
       const a = firstJson(reply);
