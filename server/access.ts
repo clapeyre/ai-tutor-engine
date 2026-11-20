@@ -12,7 +12,7 @@ import { config, learnerPath } from "./config.ts";
 
 const FILE = () => learnerPath("access.json");
 const LINK = () => learnerPath("access-link.txt");
-const COOKIE = () => `cpl_access_${config.port}`; // per port: two servers on one host don't share it
+const COOKIE = () => `tutor_access_${config.port}`; // per port: two servers on one host don't share it
 const open = () => process.env.ACCESS === "open";
 
 let token: string | null = null;

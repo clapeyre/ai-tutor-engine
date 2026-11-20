@@ -1,0 +1,25 @@
+# Concept graph: L0 picture, L1 use, L2 how, L3 edge. Domains: arrays | workflow.
+concepts:
+  - id: array-shape
+    domain: arrays
+    prereqs: []
+    modules: ["01"]
+    placement: "A table has 3 rows and 4 columns. What do you think NumPy calls that, and how would it write it?"
+    layers:
+      L0: "An array is a grid of numbers; its shape says how long it is along each direction."
+      L1: "Ask the agent to print the shape of every array it makes, and compare with what you expected."
+      L2: "Broadcasting compares shapes from the last axis backwards; axes of length 1 stretch."
+      L3: "Broadcasting can silently produce an outer sum or product when a row and a column are mixed up."
+    misconceptions: [M-SHAPE-MISMATCH-ERRORS]
+
+  - id: silent-overflow
+    domain: workflow
+    prereqs: [array-shape]
+    modules: ["01"]
+    placement: "Your agent says the computation finished with no errors. How sure are you that the numbers are right?"
+    layers:
+      L0: "A number type has a range; past it, values wrap around without a warning."
+      L1: "Check one value you can compute by hand before trusting the whole result."
+      L2: "uint8 arithmetic is modulo 256; NumPy keeps the input dtype for array addition."
+      L3: "Scalar operations and some reductions promote or warn differently; check, don't assume."
+    misconceptions: [M-NO-ERROR-RIGHT]

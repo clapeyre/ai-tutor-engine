@@ -4,11 +4,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-const ROOT = path.resolve(import.meta.dirname, "..");
-for (const line of fs.existsSync(path.join(ROOT, ".env")) ? fs.readFileSync(path.join(ROOT, ".env"), "utf8").split("\n") : []) {
-  const m = line.match(/^\s*([A-Za-z_]\w*)\s*=\s*(.*)\s*$/);
-  if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, "$2");
-}
+import "../server/config.ts"; // loads the course's .env
 const BASE = process.env.SIM_BASE_URL ?? "https://inference-api.nvidia.com/v1";
 
 export type Content = string | ({ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } })[];

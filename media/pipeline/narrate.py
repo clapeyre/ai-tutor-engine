@@ -15,7 +15,7 @@ import numpy as np, soundfile as sf
 
 PAD = 0.6
 SR = 24000
-root = Path(__file__).resolve().parents[1]
+root = Path(os.environ["MEDIA"])  # the course's media/ (env.sh)
 vid = sys.argv[1]
 voice = sys.argv[sys.argv.index("--voice") + 1] if "--voice" in sys.argv else "af_heart"
 src = next(iter(sorted(glob.glob(str(root / "scripts" / f"{vid}*.md")))))

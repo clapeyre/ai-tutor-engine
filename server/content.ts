@@ -64,10 +64,12 @@ export interface RunRules {
 
 export interface Course {
   title: string;
-  brand: string; // what the page calls the course ("cuPhoton Learn")
+  brand: string; // what the page calls the course ("cuPhoton Learn", "Warp Learn")
   reportName: string; // the admin page's report archive: <reportName>-<date>-<commit>
-  product: string; // the software it teaches ("cuPhoton")
-  commit: string;
+  product: string; // the software it teaches ("cuPhoton", "Warp")
+  commit: string; // the product commit the course is pinned to; "" when it tracks the latest release
+  versionCmd?: string; // a shell command printing the installed product's version (server/version.ts)
+  needsGpu: boolean; // course.yaml `needs_gpu` (default true): the smoke test fails without nvidia-smi
   guideUrl: string;
   runs: RunRules;
   modules: Module[];
@@ -180,17 +182,19 @@ function parseBody(body: string, lessonDir: string, videos: Course["videos"], le
   return { parts, closure };
 }
 
-// A guide page by its file name (read-fits): its title from the pinned checkout's guide sources, and its URL.
+// A guide page by its path under the guide (read-fits, user_guide/basics): its title from the product checkout's
+// guide sources (a Markdown/Quarto "# Title", or a reStructuredText title over a line of = - ~ * #), and its URL.
 function guidePage(product: any, name: string) {
   const base = product?.guide ?? "";
   const f = path.join(config.productDir, product?.guide_dir ?? "docs/guide", `${name}${product?.guide_ext ?? ".qmd"}`);
-  const t = fs.existsSync(f) ? fs.readFileSync(f, "utf8").match(/^# (.+?)(?:\s*\{[^}]*\})?\s*$/m)?.[1] : undefined;
+  const src = fs.existsSync(f) ? fs.readFileSync(f, "utf8") : "";
+  const t = src.match(/^# (.+?)(?:\s*\{[^}]*\})?\s*$/m)?.[1] ?? src.match(/^(?![.\s])(.+?)\s*\n([=\-~*#])\2{2,}\s*$/m)?.[1];
   return { title: t ?? name, url: `${base}${name}.html` };
 }
 
 export function loadCourse(): Course {
   const cy = YAML.parse(fs.readFileSync(path.join(config.courseDir, "course.yaml"), "utf8"));
-  const product = cy.product ?? cy.cuphoton ?? {}; // `cuphoton:` was this block's name before 20 Nov 2026
+  const product = cy.product ?? {};
   const videosFile = path.join(config.mediaDir, "videos.yaml");
   const videos = fs.existsSync(videosFile) ? YAML.parse(fs.readFileSync(videosFile, "utf8")) ?? {} : {};
   const modules: Module[] = [];
@@ -231,7 +235,7 @@ export function loadCourse(): Course {
     gpuBackend: r.gpu_backend, gpuCode: r.gpu_code,
   };
   const name = String(product.name ?? "");
-  return { title: cy.title, brand: String(cy.brand ?? cy.title), reportName: String(cy.report_name ?? `${cy.id ?? "course"}-report`), product: name, commit: product.commit ?? "", guideUrl: product.guide ?? "", runs, modules, lessons, order, glossary: loadGlossary(), chain: cy.chain ?? [], videos };
+  return { title: cy.title, brand: String(cy.brand ?? cy.title), reportName: String(cy.report_name ?? `${cy.id ?? "course"}-report`), product: name, commit: String(product.commit ?? ""), versionCmd: product.version_cmd, needsGpu: cy.needs_gpu !== false, guideUrl: product.guide ?? "", runs, modules, lessons, order, glossary: loadGlossary(), chain: cy.chain ?? [], videos };
 }
 
 // read_more: "Label | https://…" — one outside page that explains the idea in more depth.
@@ -250,9 +254,10 @@ function loadGlossary(): Map<string, GlossaryEntry> {
     for (const n of names) {
       const e: GlossaryEntry = { key: normKey(n), label: names.length > 1 ? n : label, definition: t.definition, holdUntil: hold, link: readMore(t.read_more) };
       g.set(e.key, e);
-      // "PSF (point-spread function)" is also reachable as "point-spread function"
+      // "PSF (point-spread function)" is also reachable as "point-spread function", unless the term says
+      // its parenthesis is a qualifier, not a synonym ("pixel value (counts)": paren_alias: false).
       const paren = String(n).match(/\((.*?)\)/)?.[1];
-      if (paren && !/^(counts|in the sky|matching kernel|sample)$/i.test(paren)) g.set(normKey(paren), { ...e, key: normKey(paren) });
+      if (paren && t.paren_alias !== false) g.set(normKey(paren), { ...e, key: normKey(paren) });
     }
   }
   const con = YAML.parse(fs.readFileSync(path.join(config.courseDir, "concepts.yaml"), "utf8"));

@@ -1,13 +1,13 @@
 // The report archive (admin page, "Download report"): what the course authors need to understand a
 // session, in one file the learner can email or attach to an issue. It holds the learner's conversations
 // with the tutor, their progress, the tutor's feedback notes and the server's metrics and log, stamped with
-// the app's commit. It leaves out the model key (endpoint.json), the access token and link, and the
+// the course's and the engine's commits. It leaves out the model key (endpoint.json), the access token and link, and the
 // workspace's files (only their names and sizes); any key or token that shows up in a log is replaced.
 import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { config, learnerPath, ROOT } from "./config.ts";
+import { config, COURSE_ROOT, learnerPath } from "./config.ts";
 import { current } from "./endpoint.ts";
 import { app } from "./version.ts";
 
@@ -62,7 +62,7 @@ export async function buildReport(prefix: string, about: Record<string, unknown>
     for (const r of walk(base)) put(path.join(d, r), fs.readFileSync(path.join(base, r), "utf8"));
   }
   try {
-    const log = fs.readFileSync(path.join(ROOT, "server.log"), "utf8").split("\n");
+    const log = fs.readFileSync(path.join(COURSE_ROOT, "server.log"), "utf8").split("\n");
     put("server.log", log.slice(-LOG_LINES).join("\n"));
   } catch {}
   const work = learnerPath("work");
@@ -71,7 +71,7 @@ export async function buildReport(prefix: string, about: Record<string, unknown>
   }
   put("about.json", JSON.stringify({
     created: new Date().toISOString(),
-    app: { commit: app.commit, dirty: app.dirty, date: app.date },
+    app: { course: app.course, engine: app.engine },
     model: `${config.provider}/${config.model}`,
     ...about,
     contents: "conversations with the tutor (sessions/), progress, the tutor's feedback notes, metrics, the server log; "

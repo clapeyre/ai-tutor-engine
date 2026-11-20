@@ -11,7 +11,7 @@ file=${2:-${id//-/_}.py}
 cls=${3:-$dcls}
 out=$MEDIA_RENDERS/$id
 case $QUALITY in l) res=480p15 ;; m) res=720p30 ;; h) res=1080p60 ;; p) res=1440p60 ;; k) res=2160p60 ;; *) echo "bad QUALITY=$QUALITY" >&2; exit 2 ;; esac
-( cd "$MEDIA/scenes" && manim -q"$QUALITY" --media_dir "$out/manim" "$file" "$cls" )
+( cd "$MEDIA/scenes" && PYTHONPATH="$MEDIA_PIPELINE${PYTHONPATH:+:$PYTHONPATH}" manim -q"$QUALITY" --media_dir "$out/manim" "$file" "$cls" )
 vid=$out/manim/videos/${file%.py}/$res/$cls.mp4
 : > "$out/audio/list.txt"
 for f in $(ls "$out"/audio/s*.wav | sort -V); do echo "file '$(realpath "$f")'" >> "$out/audio/list.txt"; done

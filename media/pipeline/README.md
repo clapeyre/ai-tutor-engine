@@ -1,5 +1,9 @@
 # Video pipeline
 
+The pipeline (this folder) is the engine's; each course keeps its videos in its own `media/`
+(`scripts/`, `scenes/`, `videos/`, `videos.yaml`). Run it with `COURSE_ROOT=<course>` set, or from a
+course that has the engine as its `engine/` submodule. Scenes import `scene_common` (Timed, to_image, label).
+
 All local, all open source. Draft quality first (720p, generic voice).
 
 1. **Narration per segment.** Split the script's `**Narration:**` blocks into
@@ -16,8 +20,8 @@ All local, all open source. Draft quality first (720p, generic voice).
    segments don't drift from the narration. For a human voiceover, produce the
    `words` list by forced alignment of the recording (e.g. a Whisper model with
    word timestamps) and keep the same timings.json format. Real data comes
-   from cuPhoton CPU runs on the sample pair, saved as `.npz` by a small
-   `media/scenes/data_<id>.py` script, so the video and the course use the same
+   from the product's own runs, saved as `.npz` by a small
+   `media/scenes/data_<id>.py` script in the course, so the video and the course use the same
    numbers.
 3. **Assemble.** ffmpeg: concatenate segment audio, mux with the render, burn no
    subtitles; write `<id>.srt` from the segment texts and timings.
@@ -32,7 +36,7 @@ Music: none in drafts.
 ## Setup used for the drafts (user space, no sudo)
 
     pipeline/setup.sh                      # venv at $MEDIA_VENV (uv, python 3.12, pinned manim/kokoro)
-    pipeline/data.sh v1                    # data_v1.py in the cuPhoton env ($CUPHOTON_DIR) -> $VIDEO_DATA
+    # the course's data step for v1 (its own script)   -> $VIDEO_DATA
     pipeline/make.sh v1-why-not-subtract   # narrate.py + render.sh -> media/videos/
     # paths and quality: pipeline/env.sh; usage: media/README.md
 

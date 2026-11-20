@@ -10,7 +10,7 @@ import {
   createAgentSession, createBashToolDefinition, createExtensionRuntime, createLocalBashOperations, defineTool, loadSkillsFromDir, ModelRuntime,
   SessionManager, SettingsManager, type AgentSession, type ResourceLoader, type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import { config, learnerPath } from "./config.ts";
+import { config, learnerPath, learnerPythonBin } from "./config.ts";
 import type { Course, Lesson } from "./content.ts";
 import { modelsPath } from "./endpoint.ts";
 import { tutorPrompt } from "./prompt.ts";
@@ -20,7 +20,7 @@ import { QUEUE, Store, type FigureOnPage, type Pointer, type Thread } from "./st
 // drafts: text the tutor is streaming right now, keyed "turn:<lesson>/<turn>" or "thread:<id>".
 // turn: the Your turn ("lesson/turn") the main thread is answering right now, so the page can say it is still working there.
 import { describeStep, type Step } from "./steps.ts";
-import { app } from "./version.ts";
+import { app, productVersion } from "./version.ts";
 
 export type Activity = { main: string | null; turn: string | null; threads: Record<string, boolean>; drafts: Record<string, string>; steps: Step[]; since: number | null; retry: { attempt: number; of: number; delayMs: number; at: number; error: string } | null };
 
@@ -92,7 +92,7 @@ export class Tutor {
     });
     this.model = this.runtime.getModel(config.provider, config.model);
     if (!this.model) throw new Error(`model ${config.provider}/${config.model} not found (tutor/pi-agent/models.json, or learner/endpoint.json from /setup)`);
-    const pyBin = config.pythonBin || path.join(config.productDir, ".venv", "bin");
+    const pyBin = learnerPythonBin();
     if (fs.existsSync(pyBin) && !process.env.PATH?.startsWith(pyBin)) process.env.PATH = `${pyBin}:${process.env.PATH}`;
     if (config.offline) process.env.PI_OFFLINE = "1";
     fs.mkdirSync(learnerPath("sessions", "main"), { recursive: true });
@@ -200,8 +200,9 @@ export class Tutor {
 
   private systemPrompt(kind: "main" | "margin") {
     // The engine's SYSTEM.md, filled from the course's COURSE.md (server/prompt.ts).
-    const { system: base, environment } = tutorPrompt(config.tutorDir, {
-      product: this.course.product, commit: this.course.commit, productDir: config.productDir, gpuPythonBin: config.gpuPythonBin,
+    const { system: base, environment } = tutorPrompt(config.engineTutorDir, config.courseTutorDir, {
+      product: this.course.product, commit: this.course.commit, productVersion: productVersion(this.course),
+      productDir: config.productDir, gpuPythonBin: config.gpuPythonBin,
     });
     const outline = this.course.modules.map((u) =>
       `- Module ${u.id} · ${u.title}\n` + u.lessons.map((l) => `  - ${l.id} ${l.title} (turns: ${l.turnIds.join(", ") || "none"})`).join("\n")).join("\n");
@@ -228,7 +229,10 @@ export class Tutor {
   }
 
   private loader(kind: "main" | "margin"): ResourceLoader {
-    const skills = loadSkillsFromDir({ dir: path.join(config.tutorDir, "skills"), source: "course" });
+    // The engine's skills (unstick, adapt-pace, report-feedback), then the course's (its product's working layer).
+    const fromEngine = loadSkillsFromDir({ dir: path.join(config.engineTutorDir, "skills"), source: "engine" });
+    const fromCourse = loadSkillsFromDir({ dir: path.join(config.courseTutorDir, "skills"), source: "course" });
+    const skills = { skills: [...fromEngine.skills, ...fromCourse.skills], diagnostics: [...fromEngine.diagnostics, ...fromCourse.diagnostics] };
     const sys = this.systemPrompt(kind);
     return {
       getExtensions: () => ({ extensions: [], errors: [], runtime: createExtensionRuntime() }),
@@ -248,7 +252,7 @@ export class Tutor {
   private async makeSession(sm: SessionManager, kind: "main" | "margin"): Promise<AgentSession> {
     const { session } = await createAgentSession({
       cwd: config.learnerDir,
-      agentDir: path.join(config.tutorDir, "pi-agent"),
+      agentDir: path.join(config.engineTutorDir, "pi-agent"),
       modelRuntime: this.runtime,
       model: this.model,
       thinkingLevel: config.thinking,
@@ -456,7 +460,7 @@ export class Tutor {
         execute: async (_id, p) => {
           const ev = {
             ts: new Date().toISOString(), ...p, lesson: p.lesson ?? s.page.current,
-            tutor_model: `${config.provider}/${config.model}`, course_commit: this.course.commit, app_commit: app.label,
+            tutor_model: `${config.provider}/${config.model}`, product_version: productVersion(this.course), app_commit: app.label,
           };
           fs.appendFileSync(QUEUE(), JSON.stringify(ev) + "\n");
           if (p.kind === "novel_misconception") s.addObservation(p.summary);

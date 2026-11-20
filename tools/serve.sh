@@ -1,6 +1,9 @@
 #!/bin/bash
-# Restart the dev server in the background; pid in server.pid, log in server.log.
-cd "$(dirname "$0")/.."
+# Restart the course server in the background; pid in server.pid, log in server.log, both in the course.
+# The course is COURSE_ROOT (default: the engine's example course).
+engine=$(cd "$(dirname "$0")/.." && pwd)
+export COURSE_ROOT=$(cd "${COURSE_ROOT:-$engine/example}" && pwd)
+cd "$COURSE_ROOT"
 [ -f server.pid ] && kill "$(cat server.pid)" 2>/dev/null && sleep 1
 port=${PORT:-8765}
 # On a Brev instance the secure link's proxy arrives over Brev's NetBird mesh (interface wt0), not on
@@ -20,7 +23,7 @@ if ss -ltn 2>/dev/null | grep -qE "[0-9.*]:$port "; then
   echo "Port $port is held by a server this script didn't start (e.g. npm start in a terminal). Stop it there, then rerun." >&2
   exit 1
 fi
-nohup node --import tsx server/index.ts > server.log 2>&1 &
+nohup "$engine/node_modules/.bin/tsx" "$engine/server/index.ts" > server.log 2>&1 &
 echo $! > server.pid
 for i in $(seq 30); do grep -q " on http://" server.log && break; sleep 0.5; done
 cat server.log

@@ -6,8 +6,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { chat, firstJson } from "./llm.ts";
 import { brand, product } from "./course_names.ts";
+import { COURSE_ROOT } from "../server/config.ts";
 
-const ROOT = path.resolve(import.meta.dirname, "..");
 const run = path.resolve(process.argv[2]);
 const gi = process.argv.indexOf("--grader");
 const DEFAULT_GRADER = "aws/anthropic/bedrock-claude-opus-5-5";
@@ -69,7 +69,7 @@ const prompt = (mod: string, dir: string) => {
 
 const out: any[] = [];
 // The course as it was when the run started (the files may have been fixed since).
-const modsDir = ci > 0 ? path.resolve(process.argv[ci + 1]) : path.join(ROOT, "course", "modules");
+const modsDir = ci > 0 ? path.resolve(process.argv[ci + 1]) : path.join(COURSE_ROOT, "course", "modules");
 for (const d of fs.readdirSync(modsDir).sort()) {
   const mod = d.slice(0, 2);
   if (!byMod.has(mod)) continue;

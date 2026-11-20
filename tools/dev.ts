@@ -3,17 +3,19 @@
 // A restart cuts off a tutor turn in progress; the conversation itself survives (it's in learner/).
 import { spawn, type ChildProcess } from "node:child_process";
 import path from "node:path";
+import { COURSE_ROOT, ENGINE_ROOT } from "../server/config.ts";
 
-const root = path.resolve(import.meta.dirname, "..");
-const bin = (name: string) => path.join(root, "node_modules", ".bin", name);
+const bin = (name: string) => path.join(ENGINE_ROOT, "node_modules", ".bin", name);
+const course = (p: string) => path.join(COURSE_ROOT, p);
 
 const children: ChildProcess[] = [
-  spawn(bin("vite"), ["build", "web", "--watch"], { cwd: root, stdio: "inherit" }),
+  spawn(bin("vite"), ["build", "web", "--watch"], { cwd: ENGINE_ROOT, stdio: "inherit" }),
   spawn(bin("tsx"), [
     "watch", "--clear-screen=false",
-    "--include", "course/**", "--include", "tutor/SYSTEM.md", "--include", "tutor/COURSE.md", "--include", "tutor/skills/**",
-    "server/index.ts",
-  ], { cwd: root, stdio: "inherit" }),
+    "--include", course("course/**"), "--include", course("tutor/COURSE.md"), "--include", course("tutor/skills/**"),
+    "--include", path.join(ENGINE_ROOT, "tutor/SYSTEM.md"), "--include", path.join(ENGINE_ROOT, "tutor/skills/**"),
+    path.join(ENGINE_ROOT, "server/index.ts"),
+  ], { cwd: COURSE_ROOT, stdio: "inherit", env: { ...process.env, COURSE_ROOT } }),
 ];
 
 let stopping = false;

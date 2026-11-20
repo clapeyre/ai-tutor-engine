@@ -12,9 +12,9 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import WebSocket from "ws";
+import { COURSE_ROOT, ENGINE_ROOT } from "../server/config.ts";
 import { chat, firstJson, imagePart, type Msg, type Usage } from "./llm.ts";
 
-const ROOT = path.resolve(import.meta.dirname, "..");
 const arg = (k: string, d?: string) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
 const personaFile = path.resolve(arg("persona")!);
 const tutorModel = arg("tutor", "aws/anthropic/bedrock-claude-sonnet-5-5")!;
@@ -28,11 +28,11 @@ const tag = arg("tag", "");
 const historyLimit = Number(arg("history", "80"));
 
 const persona = fs.readFileSync(personaFile, "utf8");
-const rules = fs.readFileSync(path.join(ROOT, "sim", "learner_rules.md"), "utf8");
+const rules = fs.readFileSync(path.join(ENGINE_ROOT, "sim", "learner_rules.md"), "utf8");
 const shortModel = tutorModel.split("/").pop()!.replace(/^bedrock-claude-/, "");
 const stamp = new Date().toISOString().slice(5, 16).replace(/[-:T]/g, "").replace(/^(\d{4})/, "$1-");
 const runId = `${stamp}-${path.basename(personaFile, ".md")}-${shortModel}${tag ? "-" + tag : ""}`;
-const run = path.join(ROOT, "runs", runId);
+const run = path.join(COURSE_ROOT, "runs", runId);
 const learnerDir = path.join(run, "learner");
 fs.mkdirSync(learnerDir, { recursive: true });
 const out = fs.createWriteStream(path.join(run, "transcript.md"));
@@ -40,9 +40,9 @@ const log = (s: string) => out.write(s + "\n\n");
 const say = (s: string) => console.log(`[${runId}] ${s}`);
 
 // ---------- the server ----------
-const server = spawn(path.join(ROOT, "node_modules", ".bin", "tsx"), ["server/index.ts"], {
-  cwd: ROOT, stdio: ["ignore", fs.openSync(path.join(run, "server.log"), "a"), fs.openSync(path.join(run, "server.log"), "a")],
-  env: { ...process.env, PORT: String(port), LEARNER_DIR: learnerDir, ACCESS: "open", PING_EVERY_MIN: "0", TUTOR_PROVIDER: tutorProvider, TUTOR_MODEL: tutorModel },
+const server = spawn(path.join(ENGINE_ROOT, "node_modules", ".bin", "tsx"), [path.join(ENGINE_ROOT, "server", "index.ts")], {
+  cwd: COURSE_ROOT, stdio: ["ignore", fs.openSync(path.join(run, "server.log"), "a"), fs.openSync(path.join(run, "server.log"), "a")],
+  env: { ...process.env, COURSE_ROOT, PORT: String(port), LEARNER_DIR: learnerDir, ACCESS: "open", PING_EVERY_MIN: "0", TUTOR_PROVIDER: tutorProvider, TUTOR_MODEL: tutorModel },
 });
 const stopServer = () => { try { server.kill("SIGTERM"); } catch {} };
 process.on("exit", stopServer);
@@ -82,15 +82,15 @@ async function settle(): Promise<number> {
 // ---------- what the learner sees ----------
 const strip = (s: string) => s.replace(/\[\[([^\]|]*)\|?([^\]]*)\]\]/g, (_m, t, shown) => shown || t.replace(/^@/, ""));
 function srt(src: string) {
-  const f = path.join(ROOT, "media", "videos", path.basename(src).replace(/\.mp4$/, ".srt"));
+  const f = path.join(COURSE_ROOT, "media", "videos", path.basename(src).replace(/\.mp4$/, ".srt"));
   if (!fs.existsSync(f)) return "";
   return fs.readFileSync(f, "utf8").split(/\r?\n/).filter((l) => l.trim() && !/^\d+$/.test(l.trim()) && !/-->/.test(l)).join(" ");
 }
 function fileFor(src: string): string | null {
   const u = src.split("?")[0];
   if (u.startsWith("/workspace/")) return path.join(learnerDir, decodeURIComponent(u.slice("/workspace/".length)));
-  if (u.startsWith("/course-files/")) return path.join(ROOT, "course", decodeURIComponent(u.slice("/course-files/".length)));
-  if (u.startsWith("/media/")) return path.join(ROOT, "media", decodeURIComponent(u.slice("/media/".length)));
+  if (u.startsWith("/course-files/")) return path.join(COURSE_ROOT, "course", decodeURIComponent(u.slice("/course-files/".length)));
+  if (u.startsWith("/media/")) return path.join(COURSE_ROOT, "media", decodeURIComponent(u.slice("/media/".length)));
   return null;
 }
 type Seen = { turnLog: Record<string, number>; status: Record<string, string>; slots: Record<string, string>; revealed: boolean; thread: Record<string, number> };

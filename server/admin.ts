@@ -265,7 +265,7 @@ export class Admin {
 
     const cached = calls.slice(-50);
     return {
-      now, startedAt: this.started, app: { label: app.label, date: app.date, issues: app.issues },
+      now, startedAt: this.started, app: { label: app.label, date: app.course.date, issues: app.issues },
       notes: this.notes(),
       tutor: this.tutor.status(),
       totals: {

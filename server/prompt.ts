@@ -25,10 +25,11 @@ export function fill(text: string, blocks: Map<string, string>, vars: PromptVars
   });
 }
 
-/** The engine's prompt with the course's blocks in place, and the course's environment lines. */
-export function tutorPrompt(tutorDir: string, vars: PromptVars) {
-  const blocks = courseBlocks(path.join(tutorDir, "COURSE.md"));
-  const system = fill(fs.readFileSync(path.join(tutorDir, "SYSTEM.md"), "utf8"), blocks, vars, "SYSTEM.md");
+/** The engine's prompt (<engineTutorDir>/SYSTEM.md) with the course's blocks (<courseTutorDir>/COURSE.md) in
+ *  place, and the course's environment lines. */
+export function tutorPrompt(engineTutorDir: string, courseTutorDir: string, vars: PromptVars) {
+  const blocks = courseBlocks(path.join(courseTutorDir, "COURSE.md"));
+  const system = fill(fs.readFileSync(path.join(engineTutorDir, "SYSTEM.md"), "utf8"), blocks, vars, "SYSTEM.md");
   const environment = blocks.has("environment") ? fill(blocks.get("environment")!, blocks, vars, "COURSE.md environment") : "";
   return { system, environment };
 }

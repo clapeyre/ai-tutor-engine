@@ -1,4 +1,4 @@
-// cuPhoton Learn server: one learner, on the GPU machine, reached over an SSH tunnel.
+// The course server: one learner, on the GPU machine, reached over an SSH tunnel.
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -10,7 +10,7 @@ import { Tutor } from "./tutor.ts";
 import { Admin } from "./admin.ts";
 import { accessLink, allow, allowSocket, setBrand } from "./access.ts";
 import { buildReport } from "./report.ts";
-import { app } from "./version.ts";
+import { app, productVersion } from "./version.ts";
 import { isConfigured, loadEndpoint, pingEndpoint, PRESETS, saveEndpoint, type Endpoint } from "./endpoint.ts";
 
 const course = loadCourse();
@@ -142,7 +142,7 @@ const server = http.createServer((req, res) => {
   if (p === "/api/admin") { admin.report().then(json, (e) => json({ error: String(e?.message ?? e) }, 500)); return; }
   // The report archive (server/report.ts): conversations, progress, notes, metrics, log; no key or token.
   if (p === "/api/admin/report") {
-    buildReport(course.reportName, { product: course.product, product_commit: course.commit, lesson: store.page.current, lessons: course.order.length }).then((r) => {
+    buildReport(course.reportName, { product: course.product, product_version: productVersion(course), lesson: store.page.current, lessons: course.order.length }).then((r) => {
       res.writeHead(200, { "content-type": "application/gzip", "content-disposition": `attachment; filename="${r.name}"` });
       fs.createReadStream(r.file).on("close", r.cleanup).pipe(res);
     }, (e) => json({ error: String(e?.message ?? e) }, 500));

@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import { config } from "../server/config.ts";
 import { loadCourse, normKey, type Course } from "../server/content.ts";
 import { isConfigured, pingEndpoint } from "../server/endpoint.ts";
+import { productVersion } from "../server/version.ts";
 
 let failed = 0;
 const ok = (name: string, detail = "") => console.log(`  ok    ${name}${detail ? "  " + detail : ""}`);
@@ -38,17 +39,24 @@ try {
   else if (!missing) ok("course", `${c.modules.length} module(s), ${c.lessons.size} lessons, ${c.glossary.size} glossary entries`);
 } catch (e: any) { bad("course", e.message); }
 
-// 2. The product checkout, at the commit the course is pinned to.
-if (!fs.existsSync(config.productDir)) bad(`${course.product || "product"} checkout`, config.productDir);
-else {
-  const head = spawnSync("git", ["-C", config.productDir, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim();
-  const want = course.commit;
-  head === want ? ok(`${course.product} checkout`, `pinned ${head.slice(0, 12)}`) : bad(`${course.product} checkout`, `at ${head.slice(0, 12)}, course wants ${want.slice(0, 12)}`);
+// 2. The product: its checkout (the tutor's docs), at the pinned commit if the course pins one, and the version
+//    the learner's runs will use. A course with no product (the engine's example) skips this.
+if (course.product) {
+  const name = `${course.product} checkout`;
+  if (!fs.existsSync(config.productDir)) (course.commit ? bad : warn)(name, `none at ${config.productDir}: the tutor has no docs to ground facts in`);
+  else {
+    const head = spawnSync("git", ["-C", config.productDir, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim();
+    const want = course.commit;
+    if (!want) ok(name, `at ${head.slice(0, 12)} (the course tracks the latest release)`);
+    else head === want ? ok(name, `pinned ${head.slice(0, 12)}`) : bad(name, `at ${head.slice(0, 12)}, course wants ${want.slice(0, 12)}`);
+  }
+  const v = productVersion(course);
+  v !== "unknown" ? ok(`${course.product} version`, v) : bad(`${course.product} version`, "can't tell (course.yaml product.version_cmd)");
 }
 
 // 3. GPU, then the course's own checks of its environments (course/smoke.ts, if it has one).
 const smi = spawnSync("nvidia-smi", ["--query-gpu=name,memory.total", "--format=csv,noheader"], { encoding: "utf8" });
-smi.status === 0 ? ok("gpu", smi.stdout.trim()) : bad("gpu", "nvidia-smi failed");
+smi.status === 0 ? ok("gpu", smi.stdout.trim()) : (course.needsGpu ? bad : warn)("gpu", "nvidia-smi failed");
 const courseChecks = path.join(config.courseDir, "smoke.ts");
 if (fs.existsSync(courseChecks)) {
   const { default: checks } = await import(pathToFileURL(courseChecks).href);

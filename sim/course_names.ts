@@ -3,7 +3,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
+import { COURSE_ROOT } from "../server/config.ts";
 
-const cy = YAML.parse(fs.readFileSync(path.resolve(import.meta.dirname, "..", "course", "course.yaml"), "utf8"));
-export const product: string = String((cy.product ?? cy.cuphoton)?.name ?? "the software");
+const cy = YAML.parse(fs.readFileSync(path.join(COURSE_ROOT, "course", "course.yaml"), "utf8"));
+export const product: string = String(cy.product?.name ?? "the software");
 export const brand: string = String(cy.brand ?? cy.title);

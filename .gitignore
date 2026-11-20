@@ -1,39 +1,12 @@
-.env
 node_modules/
-learner/
-*.log
-runs/
-server.pid
-server.log
 web/dist/
-runs-*.log
-.DS_Store
-._*
-
-# media pipeline intermediates (regenerable, see media/README.md); final videos live in media/videos/
-media/renders/data/
-media/renders/*/audio/
-media/renders/*/manim/
-media/renders/*/cues/
-media/renders/*/stills/
-media/renders/*/*.wav
-media/renders/*/*.mp4
-media/renders/*/*.srt
-media/renders/*/*.png
-media/**/__pycache__/
+.env
+*.log
+server.pid
+learner/
+runs/
 .envs/
-# cuPhoton checkout made by tools/install.sh
-.cuphoton/
-
-# cuFile (used by xDR) writes this into the working directory
-cufile.log
+.product/
+.DS_Store
 __pycache__/
-
-# The author's walkthrough notes stay local
-docs/walkthrough-*.md
-# Working documents: the original plan, the expansion review, the harness spike and the sim reports stay local
-/PLAN.md
-docs/EXPANSION-PLAN.md
-docs/M0-harness-spike.md
-docs/sim-*.md
-docs/sim-report/
+media/**/__pycache__/

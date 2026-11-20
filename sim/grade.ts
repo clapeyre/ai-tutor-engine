@@ -4,8 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { product } from "./course_names.ts";
 import { chat, firstJson } from "./llm.ts";
+import { COURSE_ROOT, ENGINE_ROOT } from "../server/config.ts";
 
-const ROOT = path.resolve(import.meta.dirname, "..");
 const run = path.resolve(process.argv[2]);
 const gi = process.argv.indexOf("--grader");
 const grader = gi > 0 ? process.argv[gi + 1] : "aws/anthropic/bedrock-claude-opus-5-5";
@@ -15,8 +15,8 @@ const meta = JSON.parse(fs.readFileSync(path.join(run, "meta.json"), "utf8"));
 const page = JSON.parse(read(path.join(run, "learner", "page.json")));
 // Lessons the learner opened: their text and the tutor's notes.
 const lessonDirs: string[] = [];
-for (const m of fs.readdirSync(path.join(ROOT, "course", "modules"))) {
-  const md = path.join(ROOT, "course", "modules", m);
+for (const m of fs.readdirSync(path.join(COURSE_ROOT, "course", "modules"))) {
+  const md = path.join(COURSE_ROOT, "course", "modules", m);
   if (!fs.statSync(md).isDirectory()) continue;
   for (const l of fs.readdirSync(md)) {
     const id = l.match(/^(\d+\.\d+)-/)?.[1];
@@ -28,9 +28,9 @@ const blind = (s: string) => s.replaceAll(meta.tutor_model, "<tutor model>").rep
 const { tutor_model, run_id, ...metaBlind } = meta;
 
 const prompt = [
-  read(path.join(ROOT, "sim", "rubric.md")).replaceAll("{{product}}", product),
-  "<persona>", read(path.join(ROOT, "sim", "personas", meta.persona)), "</persona>",
-  "<misconception-catalogue>", read(path.join(ROOT, "course", "misconceptions.md")), "</misconception-catalogue>",
+  read(path.join(ENGINE_ROOT, "sim", "rubric.md")).replaceAll("{{product}}", product),
+  "<persona>", read(path.join(COURSE_ROOT, "sim", "personas", meta.persona)), "</persona>",
+  "<misconception-catalogue>", read(path.join(COURSE_ROOT, "course", "misconceptions.md")), "</misconception-catalogue>",
   "<lessons-covered>", lessonsText, "</lessons-covered>",
   "<transcript note=\"what the learner saw and did; step numbers in [brackets]\">", blind(read(path.join(run, "transcript.md"))), "</transcript>",
   "<tutor-log note=\"the tutor's side: what the page told it, its tool calls (ask/settle/reveal/show_figure post to the page; bash runs code), and results; long items cut\">",

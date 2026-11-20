@@ -1,6 +1,6 @@
 ---
 name: report-feedback
-description: Send structured feedback upstream to the course authors when something in this course didn't go as designed. Use it whenever a learner shows a misconception that isn't in course/misconceptions.md (including a field meaning of a course term that differs from ours), stays stuck after the unstick playbook, hits wrong or confusing course content or cuPhoton docs, hits an environment failure, gets frustrated, or when you notice you made an error, even if the learner doesn't ask you to report anything.
+description: Send structured feedback upstream to the course authors when something in this course didn't go as designed. Use it whenever a learner shows a misconception that isn't in course/misconceptions.md (including a field meaning of a course term that differs from ours), stays stuck after the unstick playbook, hits wrong or confusing course content or product docs, hits an environment failure, gets frustrated, or when you notice you made an error, even if the learner doesn't ask you to report anything.
 ---
 
 # Report feedback
@@ -13,7 +13,7 @@ while the details are fresh; then go back to teaching.
 | --- | --- |
 | `novel_misconception` | A wrong belief not in `course/misconceptions.md`, including a term their field uses differently. File it in the same turn you first respond to it. |
 | `stuck_unresolved` | Three unstick moves without progress |
-| `content_error` | Lesson text, figure, exercise or cuPhoton doc is wrong, unclear or out of date |
+| `content_error` | Lesson text, figure, exercise or product doc (the software the course teaches) is wrong, unclear or out of date |
 | `tutor_error` | You stated something false, leaked an answer, or broke the contract ("I was wrong", "one correction") |
 | `env_failure` | Install or run failure not covered by docs/troubleshooting.md |
 | `frustration` | The learner is annoyed, bored, or about to quit |

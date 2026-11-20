@@ -1,0 +1,21 @@
+# Target vocabulary (see the engine's README for the fields).
+terms:
+  - term: shape
+    definition: "How many entries an array has along each axis: (3, 4) is 3 rows of 4."
+    source: course
+    introduce_at: "1.1"
+    bridges: ["the size of a table"]
+    avoid: ["dimension (for the length of one axis)"]
+
+  - term: broadcasting
+    definition: "NumPy's rule for combining arrays of different shapes: an axis of length 1 is stretched to match the other array's."
+    source: course
+    introduce_at: "1.1"
+    hold_back: checkpoint 1.1
+    read_more: "NumPy: Broadcasting | https://numpy.org/doc/stable/user/basics.broadcasting.html"
+
+  - term: dtype
+    definition: "The type of every entry in an array, such as uint8 (whole numbers 0–255) or float64. It decides what arithmetic does."
+    source: course
+    introduce_at: "1.2"
+    hold_back: checkpoint 1.2

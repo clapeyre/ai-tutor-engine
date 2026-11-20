@@ -33,7 +33,7 @@ export const PRESETS = [
 ] as const;
 
 const FILE = () => learnerPath("endpoint.json");
-const REPO_MODELS = () => path.join(config.tutorDir, "pi-agent", "models.json");
+const REPO_MODELS = () => path.join(config.engineTutorDir, "pi-agent", "models.json");
 const LEARNER_MODELS = () => learnerPath(".pi-models.json");
 
 export function loadEndpoint(): Endpoint | null {

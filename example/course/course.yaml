@@ -1,0 +1,31 @@
+# The engine's example course: two lessons on NumPy, runnable with no product checkout and no GPU.
+id: example-numpy
+title: NumPy arrays through an agent (engine example)
+version: 0.1
+
+brand: Example Learn
+report_name: example-report
+needs_gpu: false
+
+product:
+  name: NumPy
+  repo: https://github.com/numpy/numpy
+  # No pinned commit: the course uses whatever NumPy the learner's Python has, and says which.
+  version_cmd: python -c "import numpy; print('numpy', numpy.__version__)"
+  guide: https://numpy.org/doc/stable/user/
+  guide_dir: doc/source/user
+  guide_ext: .rst
+
+runs:
+  stages: []
+  package: numpy
+  receipts: []
+
+objectives:
+  - id: O1
+    text: Predict the shape an array operation will produce before it runs.
+  - id: O2
+    text: Check a numerical result against a value you know, rather than trusting that it ran.
+
+modules:
+  - 01-arrays

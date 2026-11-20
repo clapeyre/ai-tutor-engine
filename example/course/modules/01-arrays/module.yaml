@@ -1,0 +1,10 @@
+id: "01"
+title: Arrays, shapes and silent errors
+question: When an agent hands you an array, how do you know it's the one you asked for?
+needs: linux_cpu
+objectives: [O1, O2]
+misconceptions: [M-SHAPE-MISMATCH-ERRORS, M-NO-ERROR-RIGHT]
+time: 15–20 min
+intro: |
+  Two short lessons. You direct the tutor; it writes and runs the NumPy code.
+  Before each run, you predict what comes out.

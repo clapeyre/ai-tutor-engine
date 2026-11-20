@@ -5,10 +5,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { product } from "./course_names.ts";
+import { COURSE_ROOT } from "../server/config.ts";
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-const RUNS = path.join(ROOT, "runs");
-const MODS = path.join(ROOT, "course", "modules");
+const RUNS = path.join(COURSE_ROOT, "runs");
+const MODS = path.join(COURSE_ROOT, "course", "modules");
 const once = process.argv.includes("--once");
 const EVERY_S = 5;
 
