@@ -44,7 +44,8 @@ def migrate(name: str, lessons: dict, work: dict) -> None:
             if t.get("from") in lessons:
                 t["from"] = lessons[t["from"]]
         text = json.dumps(data, ensure_ascii=False, indent=1 if fname == "page.json" else 2)
-        text = path_rx.sub(lambda m: "work/" + work[m.group(1)], text)  # one pass: a cycle maps cleanly
+        if work:
+            text = path_rx.sub(lambda m: "work/" + work[m.group(1)], text)  # one pass: a cycle maps cleanly
         text = link_rx.sub(lambda m: "#/" + lessons[m.group(1)], text)
         p.write_text(text)
         print(f"{p}: renumbered ({name}); current = {data.get('current')}; backup in {backup}")
