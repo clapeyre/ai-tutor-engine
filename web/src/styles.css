@@ -201,6 +201,8 @@ pre.hl { border: 1px solid var(--border-color-interaction-base); border-left: 3p
 .katex { font-size: 1.08em; }
 code { white-space: normal; overflow-wrap: anywhere; }
 pre.lesson-code { margin: 0; font-family: var(--font-mono); font-size: 13.5px; line-height: 1.55; padding: 12px 14px; border-radius: 8px; background: #0a0a0a; overflow-x: auto; white-space: pre; }
+.lesson-code-wrap .code-lang { display: inline-block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; color: #9aa59f; background: #0a0a0a; border: 1px solid var(--border-color-interaction-base); border-bottom: none; border-radius: 6px 6px 0 0; padding: 2px 8px; margin-left: 12px; }
+.lesson-code-wrap pre.lesson-code { border-top-left-radius: 8px; }
 
 /* click-to-zoom image viewer */
 img.zoomable { cursor: zoom-in; }

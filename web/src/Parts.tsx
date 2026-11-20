@@ -13,7 +13,13 @@ export function PartView({ part, idx }: { part: Part; idx: number }) {
           <p><Inline text={part.text} where={`p${idx}`} /></p>
         </div>
       );
-    case "code": return <Code text={part.text} lang={part.lang} className="lesson-code" />;
+    case "code": {
+      // Python is the default and goes unlabelled; any other language says what it is, so a C++ or Fortran
+      // loop shown next to a kernel isn't read as Python.
+      const label = codeLanguage(part.lang);
+      const code = <Code text={part.text} lang={part.lang} className="lesson-code" />;
+      return label ? <div className="lesson-code-wrap"><div className="code-lang">{label}</div>{code}</div> : code;
+    }
     case "video": return <Video part={part} />;
     case "figure": return <AuthoredFigure part={part} />;
     case "slot": return <Slot part={part} />;
@@ -310,4 +316,15 @@ function Ref({ part }: { part: Extract<Part, { kind: "ref" }> }) {
       </button>
     </p>
   );
+}
+
+const LANGUAGES: [RegExp, string][] = [
+  [/^(c\+\+|cpp|cxx|cc|hpp)$/i, "C++"], [/^(c|h)$/i, "C"], [/^(cu|cuda)$/i, "CUDA"],
+  [/^(f|f77|f90|f95|f03|f08|fortran)$/i, "Fortran"], [/^(bash|sh|shell|console)$/i, "Shell"],
+  [/^json$/i, "JSON"], [/^ya?ml$/i, "YAML"],
+];
+/** The label a lesson code block shows: its fence tag's language, unless it's Python (the default) or untagged. */
+function codeLanguage(lang?: string): string | undefined {
+  if (!lang || /^py(thon)?$/i.test(lang)) return undefined;
+  return LANGUAGES.find(([re]) => re.test(lang))?.[1] ?? lang;
 }
