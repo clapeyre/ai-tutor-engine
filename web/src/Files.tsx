@@ -85,7 +85,7 @@ export function FilesPanel({ dirs, dir, setDir, files, path, setPath, onClose, r
 function FileText({ path, text, truncated }: { path: string; text: string; truncated: boolean }) {
   const lines = text.endsWith("\n") ? text.slice(0, -1) : text;
   const n = lines.split("\n").length;
-  const highlight = text.length < 200_000 && /\.(py|ya?ml|json|sh)$/i.test(path);
+  const highlight = text.length < 200_000 && /\.(py|ya?ml|json|sh|c|cc|cpp|cxx|cu|h|hpp|f|f90|f95|f03|f08)$/i.test(path);
   return (
     <>
       <div className="files-text">
