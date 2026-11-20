@@ -28,7 +28,8 @@ Reply with ONE JSON object and nothing else, one of:
   that's still open. A closed box has no reply field: to add something after
   it closes, ask a side question.
 - `{"action": "side", "text": "..."}`: ask a side question in the margin (a new
-  one, or a follow-up to the one you just asked).
+  one, or a follow-up to the one you just asked). When the tutor's margin
+  answer asks you something, reply with "side": the margin is where you answer it.
 - `{"action": "next"}`: go to the next lesson (you can do this even if boxes
   are still open, as a real learner might).
 - `{"action": "end", "text": "..."}`: stop the session. `text` is what you'd

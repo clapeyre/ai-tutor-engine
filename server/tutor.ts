@@ -442,6 +442,10 @@ export class Tutor {
           const t = resolveTurn(p.turn_id);
           if (t.turn.status === "settled") throw new Error("that turn is already settled");
           if (!t.turn.attempts) throw new Error(`the learner hasn't answered in ${p.turn_id} yet: a turn settles on their reply, never before it`);
+          // A reply that asks something and settles in the same breath leaves the learner's answer nowhere (sims, both models).
+          const lastLearner = t.turn.log.findLastIndex((e) => e.who === "learner");
+          const said = t.turn.log.slice(lastLearner + 1).filter((e) => e.who === "tutor").at(-1)?.text.trim() ?? "";
+          if (said.endsWith("?")) throw new Error(`your reply in ${p.turn_id} ends with a question, so it wasn't settled: wait for the learner's answer and settle on it (or, if the question was rhetorical, rephrase it and settle)`);
           t.turn.status = "settled";
           t.turn.summary = p.summary;
           t.turn.misconceptions.push(...(p.misconceptions ?? []));
