@@ -9,7 +9,7 @@ export COURSE_ROOT=$(cd "${COURSE_ROOT:-$engine/example}" && pwd)
 cd "$COURSE_ROOT"
 tsx="$engine/node_modules/.bin/tsx"
 modules=$1; shift
-port=8821
+port=${PORT_BASE:-8821}
 pids=()
 for model in "$@"; do
   for p in sim/personas/${PERSONAS:-*}.md; do
