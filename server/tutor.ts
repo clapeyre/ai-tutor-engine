@@ -391,6 +391,15 @@ export class Tutor {
         execute: async (_id, p) => {
           const t = resolveTurn(p.turn_id);
           if (t.turn.status === "settled") throw new Error("that turn is settled");
+          const key = `${t.lessonId}/${t.tid}`;
+          const norm = (x: string) => x.replace(/\s+/g, " ").trim().toLowerCase();
+          if (norm(p.text).length < 12 || /^placeholder\b/.test(norm(p.text))) throw new Error("that line is empty or a placeholder: nothing was posted");
+          // Seen with several models: the question already in the reply, posted again with ask (or a stray ask).
+          const since = t.turn.log.slice(t.turn.log.findLastIndex((e) => e.who === "learner") + 1);
+          if (since.some((e) => e.who === "tutor" && norm(e.text).includes(norm(p.text))))
+            throw new Error("that line is already in this turn: nothing was posted");
+          if (key === this.streamTurn && !p.hint_rung)
+            throw new Error("you're replying in this turn: your plain text already shows here, so nothing was posted. Use ask only for another turn");
           t.turn.log.push({ who: "tutor", text: p.text, at: Date.now() });
           if (p.hint_rung) t.turn.hints.push(p.hint_rung);
           this.spokeIn.add(`${t.lessonId}/${t.tid}`);
@@ -421,7 +430,7 @@ export class Tutor {
           return text(earlier.length
             ? `Settled. An earlier turn is still open: ${earlier.join(", ")}. Settle it once its criteria are met; reveal waits for it. Don't ask anything in this turn.`
             : left.length
-            ? `Settled. The page now opens the next turn, ${left[0]}, with its own question. Finish your reply about this one and stop: don't introduce or ask the next turn.`
+            ? `Settled. The page now opens the next turn, ${left[0]}, with its own question. Finish your reply about this one and stop: don't introduce, ask or answer the next turn.`
             : `Settled. All turns in ${t.lessonId} are settled; reveal("${t.lessonId}") when ready.`);
         },
       }),

@@ -277,7 +277,9 @@ try {
     if (a.action === "say") {
       const st = state.page.lessons[current]?.turns[a.turn];
       if (!l.parts.some((p: any) => p.kind === "turn" && p.id === a.turn) || st?.status === "settled") {
-        view = `(Nothing happened: there's no open Your-turn box "${a.turn}" in this lesson.)`;
+        view = st?.status === "settled"
+          ? `(Nothing happened: the box "${a.turn}" is closed and has no reply field any more. To add something, ask a side question.)`
+          : `(Nothing happened: there's no open Your-turn box "${a.turn}" in this lesson.)`;
         signal("learner_bad_box", a.turn);
         log(`## [${steps}] Learner tries to answer in "${a.turn}" (no such open box)\n\n${a.text}`);
         waits.push(0);
