@@ -116,7 +116,11 @@ function render(): string {
   if (!running.length) lines.push(`${c.dim}  No sim running.${c.off}`, "");
 
   lines.push(`${c.bold}Finished today${c.off}`);
-  for (const r of finished) {
+  // Live, the screen must hold the running sims: keep only the latest finished runs that fit under them
+  // (a long day's list scrolled the running ones off the top).
+  const room = once ? Infinity : Math.max(3, (process.stdout.rows || 40) - lines.length - stopped.length - 2);
+  const hidden = Math.max(0, finished.length - room);
+  for (const r of finished.slice(0, finished.length - hidden)) {
     const dir = path.join(RUNS, r.id);
     const rev = [fs.existsSync(path.join(dir, "bugs.json")) && "Opus", fs.existsSync(path.join(dir, "bugs-gpt-6.2-astra.json")) && "Astra"].filter(Boolean);
     // grade.ts's score, when the run was graded (sum of scored criteria, out of 3 each)
@@ -133,12 +137,18 @@ function render(): string {
   for (const r of stopped)
     lines.push(`  ${c.dim}${hhmm(now - r.idle * 1000)}${c.off}  ${c.red}✗${c.off} ${r.tutor.padEnd(34)} ${c.dim}${r.mods.join(",").padEnd(15)}${c.off}` +
       ` lessons ${r.done}/${r.lessons} · questions ${r.qDone}/${r.qTotal} · ${c.red}stopped without results${c.off}`);
+  if (hidden) lines.push(`${c.dim}  … ${hidden} earlier today (npm run sims -- --once lists them all)${c.off}`);
   if (!finished.length && !stopped.length) lines.push(`${c.dim}  None yet.${c.off}`);
   return lines.join("\n");
 }
 
 if (once) console.log(render());
 else {
+  // Long lines are clipped at the terminal's edge instead of wrapping (autowrap off; restored on exit).
+  process.stdout.write("\x1b[?7l");
+  const restore = () => { process.stdout.write("\x1b[?7h\n"); process.exit(0); };
+  process.on("SIGINT", restore);
+  process.on("SIGTERM", restore);
   const draw = () => process.stdout.write("\x1b[H\x1b[2J" + render() + "\n");
   draw();
   setInterval(draw, EVERY_S * 1000);
