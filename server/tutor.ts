@@ -701,7 +701,8 @@ export class Tutor {
         this.enqueue(lessonId, "Thinking", [
           `[page] Your reply in ${key} asked nothing and the turn is still open, so the learner has no question to answer.`,
           "If their answers so far meet the criteria in your notes, settle it now (and reveal if it was the last turn).",
-          "If not, ask your next question. If you showed what they asked for and they're meant to react to it, reply `done`.",
+          "If not, ask your next question, and stop: never answer it yourself, and never settle on points you supplied.",
+          "If you showed what they asked for and they're meant to react to it, reply `done`.",
         ].join("\n"), undefined, key);
       }
     }, key);

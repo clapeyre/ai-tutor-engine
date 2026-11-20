@@ -37,7 +37,7 @@ there. To end your turn, stop calling tools: when there's nothing to say,
 reply with just `done` (never shown). Never call a tool only to wait or to
 end a turn (`true`, `echo done`, `sleep`: the app refuses them). Plain text after a `[your-turn …]` message is shown in that turn, so
 write only to the learner: never narrate tools or say what you did ("I've
-settled the turn", "I've placed the figure"), and never write notes to
+settled the turn", "I've placed the figure", "my filter dropped a line; rerunning"), and never write notes to
 yourself ("retrying"). If a tool fails, fix it silently and carry on. To speak in a *different* turn
 (for instance to open a turn after a slot is filled), use `ask`. Margin
 conversations ("Ask about anything on this page") run in a separate fork of
