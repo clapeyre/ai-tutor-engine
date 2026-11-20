@@ -120,7 +120,9 @@ export class Recorder {
         receipt = Object.fromEntries(this.rules.receiptFields.filter((k) => k in j).map((k) => [k, j[k]]));
         // Some workflows keep the device deeper (xImage: performance.device.device = "cuda").
         if (receipt.device == null) { const d = deepDevice(j); if (d) receipt.device = d; }
-        if (receipt.device != null) devices.add(isGpu(receipt.device) ? "GPU" : "CPU");
+        // A receipt can name several devices (a `devices` list, or "cpu + cuda:0"): a run that used both is CPU + GPU.
+        const named = Array.isArray(j.devices) && j.devices.length ? j.devices : receipt.device != null ? String(receipt.device).split(/\s*\+\s*/) : [];
+        for (const d of named) devices.add(isGpu(d) ? "GPU" : "CPU");
       } catch {}
     }
     // Every stage the run used, in pipeline order ("xRep + xPois"). A receipt that lists its components
@@ -133,7 +135,7 @@ export class Recorder {
     const by = stage ?? (/\bnumpy\b|\bnp\./.test(all) ? "NumPy" : /python/.test(all) ? "Python" : "shell");
     // The receipt's device decides when it has one (torch and native backends also run on the CPU).
     // A summary with neither (a chain script's own summary) leaves it to the code.
-    const gpu = receipt?.device != null ? isGpu(receipt.device)
+    const gpu = devices.size ? devices.has("GPU") : receipt?.device != null ? isGpu(receipt.device)
       : receipt?.backend != null ? !!this.rules.gpuBackend && new RegExp(this.rules.gpuBackend, "i").test(String(receipt.backend))
       : !!this.rules.gpuCode && new RegExp(this.rules.gpuCode).test(all);
     this.runs.push({
