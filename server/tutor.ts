@@ -37,10 +37,25 @@ const REFUSED = "Refused by the course app: recursive deletes (rm -r, rmtree, fi
  *  pi has none, and a self-hosted tutor's command that never returned blocked a run for over an hour. */
 const BASH_TIMEOUT_S = 900;
 const localBash = createLocalBashOperations();
-const guardedBash = () => createBashToolDefinition(config.learnerDir, {
-  operations: { exec: (command, cwd, o) => localBash.exec(command, cwd, { ...o, timeout: o.timeout ?? BASH_TIMEOUT_S }) },
-  spawnHook: (ctx) => deletesTree(ctx.command) ? { ...ctx, command: `echo ${JSON.stringify(REFUSED).replace(/\$/g, "\\$")} >&2; exit 1` } : ctx,
-}) as unknown as ToolDefinition;
+/** A command that does nothing: a model with nothing to say sometimes calls these instead of ending its turn
+ *  (a self-hosted tutor ran `true` 1055 times in a row and left the learner waiting through two timeouts). */
+export const isNoop = (cmd: string) => /^\s*(true|:|sleep\s+[\d.]+|echo(\s+["']?[\w .-]{0,20}["']?)?)\s*;?\s*$/.test(cmd);
+const NOOP = "Refused by the course app: this command does nothing. To end your turn, stop calling tools and write your reply "
+  + "to the learner (or just `done` when there's nothing to say).";
+const NOOP_REFUSE_AT = 3, NOOP_ABORT_AT = 12;
+const guardedBash = (onLoop?: () => void) => {
+  let noops = 0;
+  const refuse = (msg: string) => `echo ${JSON.stringify(msg).replace(/\$/g, "\\$")} >&2; exit 1`;
+  return createBashToolDefinition(config.learnerDir, {
+    operations: { exec: (command, cwd, o) => localBash.exec(command, cwd, { ...o, timeout: o.timeout ?? BASH_TIMEOUT_S }) },
+    spawnHook: (ctx) => {
+      if (deletesTree(ctx.command)) return { ...ctx, command: refuse(REFUSED) };
+      noops = isNoop(ctx.command) ? noops + 1 : 0;
+      if (noops >= NOOP_ABORT_AT) { noops = 0; onLoop?.(); }
+      return noops >= NOOP_REFUSE_AT ? { ...ctx, command: refuse(NOOP) } : ctx;
+    },
+  }) as unknown as ToolDefinition;
+};
 
 /** A PNG's width and height from its header (null for other formats or a short file). */
 export function pngSize(file: string): { w: number; h: number } | null {
@@ -250,6 +265,13 @@ export class Tutor {
   }
 
   private async makeSession(sm: SessionManager, kind: "main" | "margin"): Promise<AgentSession> {
+    // A loop of no-op commands ends the prompt (the learner is told the tutor lost its train of thought).
+    const made: { s?: AgentSession } = {};
+    const onLoop = () => {
+      console.error(`[tutor] ${kind}: a loop of no-op commands, prompt aborted`);
+      this.onMetric({ kind: "noop_loop", thread: kind });
+      made.s?.abort().catch(() => {});
+    };
     const { session } = await createAgentSession({
       cwd: config.learnerDir,
       agentDir: path.join(config.engineTutorDir, "pi-agent"),
@@ -258,13 +280,14 @@ export class Tutor {
       thinkingLevel: config.thinking,
       resourceLoader: this.loader(kind),
       tools: kind === "main" ? ["read", "bash", "edit", "write", "show_figure", "ask", "settle", "reveal", "file_feedback"] : ["read", "bash"],
-      customTools: kind === "main" ? [...this.pageTools(), guardedBash()] : [guardedBash()],
+      customTools: kind === "main" ? [...this.pageTools(), guardedBash(onLoop)] : [guardedBash(onLoop)],
       sessionManager: sm,
       settingsManager: SettingsManager.inMemory({ compaction: { enabled: true }, retry: { enabled: true, maxRetries: 6 } } as any),
     });
     // One tool call at a time, in the order the model wrote them. pi runs a batch in parallel by default, so
     // `read fig.png` sent with the bash that writes it failed (ENOENT) and the tutor discussed a figure it never saw.
     session.agent.toolExecution = "sequential";
+    made.s = session;
     if (kind === "main") {
       session.subscribe((ev: any) => {
         // The page says the model's server is refusing and when the next try is, rather than going quiet.
@@ -413,7 +436,7 @@ export class Tutor {
         parameters: Type.Object({
           turn_id: Type.String(),
           summary: Type.String(),
-          misconceptions: Type.Optional(Type.Array(Type.String(), { description: "M- ids observed in this turn (resolved or not)" })),
+          misconceptions: Type.Optional(Type.Array(Type.String(), { description: "M- ids the learner voiced or acted on, in this turn or a side question since the last settle (resolved or not); never one they rejected" })),
         }),
         execute: async (_id, p) => {
           const t = resolveTurn(p.turn_id);
@@ -700,11 +723,23 @@ export class Tutor {
     const lst = this.store.lesson(thread.from);
     const open = lesson?.turnIds.filter((t) => lst.turns[t]?.status !== "settled") ?? [];
     const held = [...this.course.glossary.values()].filter((g) => g.holdUntil && this.lessonTurns.get(g.holdUntil)?.some((t) => this.store.lesson(g.holdUntil!).turns[t]?.status !== "settled"));
+    // The rest of the module's Your turns: a margin answer that gives away a later prediction (or runs its
+    // experiment early) spoils it, and the margin fork has only read the lessons so far (seen in sims).
+    const ahead: string[] = [];
+    if (lesson) {
+      for (const id of this.course.order.slice(this.course.order.indexOf(lesson.id) + 1)) {
+        const l = this.course.lessons.get(id);
+        if (!l || l.module !== lesson.module) continue;
+        for (const p of l.parts) if (p.kind === "turn" && this.store.lesson(id).turns[p.id]?.status !== "settled")
+          ahead.push(`${id} ${p.id}: ${[p.lead, p.prompt].filter(Boolean).join(" ").replace(/\s+/g, " ").slice(0, 220)}`);
+      }
+    }
     const head = [
       `[margin, lesson ${thread.from}${lesson ? ` "${lesson.title}"` : ""}]`,
       thread.messages.length <= 1 && lesson ? `Lesson text:\n<lesson.md>\n${lesson.source.trim()}\n</lesson.md>` : "",
       open.length ? `Open Your turns here (don't answer them): ${open.join(", ")}.` : "",
       held.length ? `Held back until their lesson's turns settle: ${held.map((g) => `${g.label} (${g.holdUntil})`).join(", ")}.` : "",
+      ahead.length ? `Asked later in this module (if the question is one of these, say which lesson asks it and give no result, number or run for it):\n${ahead.map((a) => `- ${a}`).join("\n")}` : "",
       thread.about ? `About: ${thread.about.label}` : "",
     ].filter(Boolean).join("\n");
     const images = await this.pointerImages(thread.about, thread.messages.length <= 1);
