@@ -363,10 +363,10 @@ export class Tutor {
     return [
       defineTool({
         name: "show_figure", label: "Show figure", executionMode: "sequential",
-        description: "Place an image from the learner workspace on the page: into a lesson slot (slot) or into a Your-turn conversation (turn_id, as lesson/turn). Its run record is attached automatically.",
+        description: "Place an image from the learner workspace on the page: into a lesson slot (slot) or into a Your-turn conversation (turn_id, as lesson/turn, and then title is required). Its run record is attached automatically.",
         parameters: Type.Object({
           path: Type.String({ description: "Image path, relative to the learner workspace (e.g. work/00/0.1_toy_sky.png)" }),
-          title: Type.Optional(Type.String({ description: "Short title. Defaults to the slot's authored title." })),
+          title: Type.Optional(Type.String({ description: "Short title (what it shows). Required with turn_id; for a slot it defaults to the slot's authored title." })),
           caption: Type.Optional(Type.String({ description: "One line: what is shown, and anything the display does to the data." })),
           slot: Type.Optional(Type.String({ description: "Slot id in the current lesson, from its :::slot directive" })),
           turn_id: Type.Optional(Type.String({ description: "lesson/turn, to place it in that conversation" })),
@@ -658,7 +658,12 @@ export class Tutor {
     const later = !!(this.thread && m && m !== this.thread.module && this.moduleIndex(m) > this.moduleIndex(this.thread.module));
     if (later) st.briefed = false;
     if (!first && missing.length === 0 && !later) { if (!this.foreground) this.prepareAhead(); return; }
-    const turnState = lesson.turnIds.map((t) => `${t}: ${st.turns[t]?.status ?? "open"}`).join("; ");
+    // Same gating as the page: a turn waits (locked) while an earlier one in the lesson is unsettled.
+    const turnState = lesson.turnIds.map((t, i) => {
+      const s = st.turns[t]?.status ?? "open";
+      const locked = s !== "settled" && lesson.turnIds.slice(0, i).some((u) => st.turns[u]?.status !== "settled");
+      return `${t}: ${locked ? "locked (opens once the one above is settled)" : s}`;
+    }).join("; ");
     const head = `[page] Learner opened lesson ${lesson.id} "${lesson.title}" (first visit). Turns: ${turnState || "none"}.\nSlots to fill when due: ${missing.join(", ") || "none"}.`;
     const msg = first
       ? st.briefed
@@ -696,7 +701,10 @@ export class Tutor {
         || /\b(give|tell|say|predict|explain|describe|list|name|answer|write|show)\b[^.\n]*\b(me|your|yours)\b/i.test(x.slice(-400))
         // "one sentence on why … and what you expect …" (7.2): a request with no verb above and no question mark
         || /\b(one|a|two|a few) (sentence|line|word)s? (on|about)\b/i.test(x.slice(-400))
-        || /\b(why|what|how|which|whether)\b[^.\n]{0,160}\byou\b/i.test(x.slice(-300));
+        || /\b(why|what|how|which|whether)\b[^.\n]{0,160}\byou\b/i.test(x.slice(-300))
+        // "Say in a sentence what STRICT does …": an imperative opening the last sentence, or "in one sentence".
+        || /(^|[.!:\n]\s*)(say|explain|tell me|name|predict|write|describe|give|list|state)\b[^.\n]*\.?\s*$/i.test(x.trim().slice(-300))
+        || /\bin (one|a|two) (sentence|line)s?\b/i.test(x.slice(-300));
       if (now.status !== "settled" && since.length && !since.some((e) => asks(e.text))) {
         this.enqueue(lessonId, "Thinking", [
           `[page] Your reply in ${key} asked nothing and the turn is still open, so the learner has no question to answer.`,
