@@ -218,8 +218,10 @@ let steps = 0, endReason = "max_steps", current = lessonIds[0], openThread: stri
 const t0 = Date.now();
 log(`# ${runId}\n\npersona: ${path.basename(personaFile)} · modules ${modules.join(", ")} · learner: ${learnerModel}`);
 
+const visits: { t: number; step: number; lesson: string }[] = []; // when each lesson was opened, to place server errors
 function open(id: string) {
   current = id;
+  visits.push({ t: Date.now(), step: steps, lesson: id });
   send({ type: "open", lesson: id });
 }
 async function learnerTurn(text: string) {
@@ -330,7 +332,11 @@ if (endReason !== "learner_ended" && endReason !== "finished") { leaving(current
 const admin: any = await (await fetch(`${base}/api/admin`)).json().catch(() => ({}));
 for (const line of fs.readFileSync(path.join(run, "server.log"), "utf8").split("\n"))
   if (/\[(tutor|ws|margin|content)\]|Error|failed|Traceback|warn/i.test(line)) signal("server_log", line.slice(0, 300));
-for (const e of admin.errors ?? []) if (!/Request (was )?aborted/.test(e.message)) signalsFile.write(JSON.stringify({ t: e.t, kind: "admin_error", detail: `${e.where}: ${String(e.message).slice(0, 300)}` }) + "\n");
+// Each server error carries the lesson open when it was logged, so a per-module review doesn't read another module's error as its own.
+for (const e of admin.errors ?? []) if (!/Request (was )?aborted/.test(e.message)) {
+  const v = visits.findLast((x) => x.t <= e.t);
+  signalsFile.write(JSON.stringify({ t: e.t, ...(v ? { step: v.step, lesson: v.lesson } : {}), kind: "admin_error", detail: `${e.where}: ${String(e.message).slice(0, 300)}` }) + "\n");
+}
 signalsFile.end();
 fs.writeFileSync(path.join(run, "admin.json"), JSON.stringify(admin, null, 1));
 ws.close();
