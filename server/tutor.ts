@@ -39,17 +39,21 @@ const BASH_TIMEOUT_S = 900;
 const localBash = createLocalBashOperations();
 /** A command that does nothing: a model with nothing to say sometimes calls these instead of ending its turn
  *  (a self-hosted tutor ran `true` 1055 times in a row and left the learner waiting through two timeouts). */
-export const isNoop = (cmd: string) => /^\s*(true|:|sleep\s+[\d.]+|echo(\s+["']?[\w .-]{0,20}["']?)?)\s*;?\s*$/.test(cmd);
+export const isNoop = (cmd: string) => /^\s*(true|:|pwd|sleep\s+[\d.]+|echo(\s+["']?[\w .-]{0,20}["']?)?)\s*;?\s*$/.test(cmd);
 const NOOP = "Refused by the course app: this command does nothing. To end your turn, stop calling tools and write your reply "
   + "to the learner (or just `done` when there's nothing to say).";
 const NOOP_REFUSE_AT = 3, NOOP_ABORT_AT = 12;
-const guardedBash = (onLoop?: () => void) => {
+/** `replied()`: the model has already written text in this prompt. A no-op after that is a model that can't end
+ *  its turn without a tool call (Kimi K3.1 wrote "done", then ran `true`, `pwd` or `ls` for minutes, 21 Nov):
+ *  its reply is complete, so the prompt ends there (`onDone`) instead of after a dozen refusals. */
+const guardedBash = (onLoop?: () => void, replied?: () => boolean, onDone?: () => void) => {
   let noops = 0;
   const refuse = (msg: string) => `echo ${JSON.stringify(msg).replace(/\$/g, "\\$")} >&2; exit 1`;
   return createBashToolDefinition(config.learnerDir, {
     operations: { exec: (command, cwd, o) => localBash.exec(command, cwd, { ...o, timeout: o.timeout ?? BASH_TIMEOUT_S }) },
     spawnHook: (ctx) => {
       if (deletesTree(ctx.command)) return { ...ctx, command: refuse(REFUSED) };
+      if (isNoop(ctx.command) && replied?.()) { onDone?.(); return { ...ctx, command: refuse(NOOP) }; }
       noops = isNoop(ctx.command) ? noops + 1 : 0;
       if (noops >= NOOP_ABORT_AT) { noops = 0; onLoop?.(); }
       return noops >= NOOP_REFUSE_AT ? { ...ctx, command: refuse(NOOP) } : ctx;
@@ -272,6 +276,12 @@ export class Tutor {
       this.onMetric({ kind: "noop_loop", thread: kind });
       made.s?.abort().catch(() => {});
     };
+    let replied = false;
+    const onDone = () => {
+      console.error(`[tutor] ${kind}: a no-op after its reply, prompt ended`);
+      this.onMetric({ kind: "noop_after_reply", thread: kind });
+      made.s?.abort().catch(() => {});
+    };
     const { session } = await createAgentSession({
       cwd: config.learnerDir,
       agentDir: path.join(config.engineTutorDir, "pi-agent"),
@@ -280,7 +290,7 @@ export class Tutor {
       thinkingLevel: config.thinking,
       resourceLoader: this.loader(kind),
       tools: kind === "main" ? ["read", "bash", "edit", "write", "show_figure", "ask", "settle", "reveal", "file_feedback"] : ["read", "bash"],
-      customTools: kind === "main" ? [...this.pageTools(), guardedBash(onLoop)] : [guardedBash(onLoop)],
+      customTools: kind === "main" ? [...this.pageTools(), guardedBash(onLoop, () => replied, onDone)] : [guardedBash(onLoop, () => replied, onDone)],
       sessionManager: sm,
       settingsManager: SettingsManager.inMemory({ compaction: { enabled: true }, retry: { enabled: true, maxRetries: 6 } } as any),
     });
@@ -288,6 +298,10 @@ export class Tutor {
     // `read fig.png` sent with the bash that writes it failed (ENOENT) and the tutor discussed a figure it never saw.
     session.agent.toolExecution = "sequential";
     made.s = session;
+    session.subscribe((ev: any) => {
+      if (ev.type === "agent_start" || (ev.type === "message_start" && ev.message?.role === "user")) replied = false;
+      else if (ev.type === "message_end" && ev.message?.role === "assistant" && textOf(ev.message).trim()) replied = true;
+    });
     if (kind === "main") {
       session.subscribe((ev: any) => {
         // The page says the model's server is refusing and when the next try is, rather than going quiet.
@@ -327,7 +341,7 @@ export class Tutor {
           // A settled turn's box is closed: drop the model's "nothing further to add" coda.
           const turnState = this.store.turn(lid, tid);
           const coda = turnState.status === "settled" && said.length < 160
-            && /nothing (further|more|else)|no further|is (already )?settled|^settled\.?$|^(lesson|module) [\d.]+ is (complete|finished)\.?$/i.test(said);
+            && /^done\.?$|nothing (further|more|else)|no further|is (already )?settled|^settled\.?$|^(lesson|module) [\d.]+ is (complete|finished)\.?$/i.test(said);
           if (coda || (said && last?.who === "tutor" && norm(last.text).includes(norm(said)))) this.onActivity();
           else if (said && last?.who === "tutor" && !last.figure && log.length > this.streamFrom
             && said.length >= 0.6 * last.text.length && isRewrite(last.text, said)) {
