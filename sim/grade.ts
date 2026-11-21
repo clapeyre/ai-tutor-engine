@@ -8,7 +8,9 @@ import { COURSE_ROOT, ENGINE_ROOT } from "../server/config.ts";
 
 const run = path.resolve(process.argv[2]);
 const gi = process.argv.indexOf("--grader");
-const grader = gi > 0 ? process.argv[gi + 1] : "aws/anthropic/bedrock-claude-opus-5-5";
+const DEFAULT_GRADER = "aws/anthropic/bedrock-claude-opus-5-5";
+const grader = gi > 0 ? process.argv[gi + 1] : DEFAULT_GRADER;
+const suffix = grader === DEFAULT_GRADER ? "" : "-" + grader.split("/").pop(); // a second grader doesn't overwrite the first
 const read = (f: string, max = 400_000) => { try { const s = fs.readFileSync(f, "utf8"); return s.length > max ? s.slice(0, max) + "\n…(cut)" : s; } catch { return "(none)"; } };
 
 const meta = JSON.parse(fs.readFileSync(path.join(run, "meta.json"), "utf8"));
@@ -44,7 +46,7 @@ const prompt = [
 
 const reply = await chat(grader, [{ role: "user", content: prompt }], { maxTokens: 6000 });
 const g = firstJson(reply);
-fs.writeFileSync(path.join(run, "grade.json"), JSON.stringify({ grader, ...g }, null, 2));
+fs.writeFileSync(path.join(run, `grade${suffix}.json`), JSON.stringify({ grader, ...g }, null, 2));
 const num = Object.values<any>(g.scores).filter((v) => typeof v === "number");
 const md = [
   `# Grade: ${meta.run_id}`, "",
@@ -57,5 +59,5 @@ const md = [
   "**Fixes:**", ...(g.fixes ?? []).map((f: any) => `- ${f.file} (${f.scope}): ${f.change}`), "",
   `**Summary:** ${g.summary ?? ""}`,
 ].join("\n");
-fs.writeFileSync(path.join(run, "grade.md"), md);
+fs.writeFileSync(path.join(run, `grade${suffix}.md`), md);
 console.log(md.split("\n").slice(0, 3).join(" "));
