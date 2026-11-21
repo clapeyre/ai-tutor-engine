@@ -25,7 +25,7 @@ for (const m of fs.readdirSync(path.join(COURSE_ROOT, "course", "modules"))) {
   }
 }
 const lessonsText = lessonDirs.map((d) => `<lesson dir="${path.basename(d)}">\n<lesson.md>\n${read(path.join(d, "lesson.md"))}\n</lesson.md>\n<tutor.md>\n${read(path.join(d, "tutor.md"))}\n</tutor.md>\n</lesson>`).join("\n\n");
-const blind = (s: string) => s.replaceAll(meta.tutor_model, "<tutor model>").replace(/(aws|azure|nvidia)\/[\w./-]*(sonnet|nemotron|opus|haiku|gemini|gpt)[\w.-]*/gi, "<model>");
+const blind = (s: string) => s.replaceAll(meta.tutor_model, "<tutor model>").replace(/(aws|azure|nvidia)\/[\w./-]*(sonnet|nemotron|opus|haiku|gemini|gpt|kimi|glm|moonshot|zai)[\w.-]*/gi, "<model>");
 const { tutor_model, run_id, ...metaBlind } = meta;
 
 const prompt = [
