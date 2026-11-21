@@ -77,18 +77,23 @@ function why(r: Info): string {
 
 const hhmm = (t: number) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-/** The --tag of every app_sim process alive on this machine (a run id ends with "-<tag>"). */
-function liveTags(): Set<string> {
-  const tags = new Set<string>();
+/** The run-id suffix of every app_sim process alive on this machine: "<persona>-<model>-m<modules>[-<tag>]", built
+ *  as app_sim builds its run id (only tagged runs used to count, so run_matrix's untagged runs showed as not running). */
+function liveSuffixes(): Set<string> {
+  const out = new Set<string>();
   for (const pid of fs.readdirSync("/proc").filter((d) => /^\d+$/.test(d))) {
     try {
       const argv = fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0");
       if (!argv.some((a) => a.endsWith("app_sim.ts"))) continue;
-      const i = argv.indexOf("--tag");
-      if (i >= 0 && argv[i + 1]) tags.add(argv[i + 1]);
+      const arg = (k: string) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : undefined; };
+      const persona = path.basename(arg("persona") ?? "", ".md");
+      const model = (arg("tutor") ?? process.env.TUTOR_MODEL ?? "aws/anthropic/bedrock-claude-sonnet-5-5").split("/").pop()!.replace(/^bedrock-claude-/, "");
+      const modules = (arg("modules") ?? "00,01").split(",").join("");
+      const tag = arg("tag");
+      out.add(`${persona}-${model}-m${modules}${tag ? "-" + tag : ""}`);
     } catch {}
   }
-  return tags;
+  return out;
 }
 
 function render(): string {
@@ -98,8 +103,12 @@ function render(): string {
   const ids = fs.existsSync(RUNS) ? fs.readdirSync(RUNS).filter((d) => /^\d{4}-\d{4}-/.test(d)).sort() : [];
   const all = ids.map((id) => info(id, now)).filter((x): x is Info => !!x);
   // A run without results is running only if its sim process is alive; otherwise it was stopped (killed) without results.
-  const alive = liveTags();
-  const isAlive = (r: Info) => [...alive].some((t) => r.id.endsWith("-" + t));
+  // The id is "<MMDD-HHMM>-<suffix>"; only the newest run with a live suffix is the live one (an older, killed run
+  // with the same persona, model and modules has no results either).
+  const alive = liveSuffixes();
+  const newest = new Map<string, string>();
+  for (const r of all) { const sfx = r.id.slice(10); if (alive.has(sfx) && !r.meta && (newest.get(sfx) ?? "") < r.id) newest.set(sfx, r.id); }
+  const isAlive = (r: Info) => newest.get(r.id.slice(10)) === r.id;
   const running = all.filter((r) => !r.meta && isAlive(r));
   const stopped = all.filter((r) => !r.meta && !isAlive(r) && new Date(now - r.idle * 1000).toDateString() === today);
   const finished = all.filter((r) => r.meta && new Date(r.metaAt).toDateString() === today).sort((a, b) => b.metaAt - a.metaAt);
